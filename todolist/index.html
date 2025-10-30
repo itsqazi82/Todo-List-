@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Futuristic Todo List</title>
+
+    <!-- Firebase v8 -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <style>
+        :root {
+            --primary: #0004ff;
+            --secondary: #0084ff;
+            --accent: #00ffaa;
+            --danger: #ff2d75;
+            --success: #00ff88;
+            --light: rgba(255, 255, 255, 0.9);
+            --dark: #0a0e17;
+            --vip: #ffcc00;
+            --professional: #00e1ff;
+            --glass: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            min-height: 100vh;
+            padding: 20px;
+            margin: 0;
+            color: var(--light);
+            background-attachment: fixed;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1, h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 700;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            font-size: 3rem;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            padding-bottom: 15px;
+            margin-top: 20px;
+            position: relative;
+        }
+        
+        h1::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 4px;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            border-radius: 2px;
+            box-shadow: 0 0 15px var(--primary);
+        }
+        
+        .card {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: var(--glass-shadow);
+            border: 1px solid var(--glass-border);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3), 0 0 30px rgba(0, 217, 255, 0.1);
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+            position: relative;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: var(--light);
+            font-size: 0.95rem;
+        }
+        
+        input, select, textarea {
+            width: 98%;
+            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            color: var(--light);
+            font-family: inherit;
+        }
+        
+        input::placeholder, textarea::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(0, 217, 255, 0.3);
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+            box-shadow: 0 5px 15px rgba(0, 217, 255, 0.3);
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, var(--secondary), var(--primary));
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 217, 255, 0.4);
+        }
+        
+        .btn:hover::before {
+            opacity: 1;
+        }
+        
+        .btn:active {
+            transform: translateY(1px);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(45deg, var(--danger), #ff006e);
+        }
+        
+        .btn-danger::before {
+            background: linear-gradient(45deg, #ff006e, var(--danger));
+        }
+        
+        .btn-success {
+            background: linear-gradient(45deg, var(--success), #00cc66);
+        }
+        
+        .btn-success::before {
+            background: linear-gradient(45deg, #00cc66, var(--success));
+        }
+        
+        .todo-list {
+            margin-top: 30px;
+        }
+        
+        .todo-item {
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--glass-shadow);
+            border: 1px solid var(--glass-border);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .todo-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 5px;
+            height: 100%;
+            background: var(--accent);
+            transition: all 0.3s ease;
+        }
+        
+        .todo-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .todo-item:hover::before {
+            width: 8px;
+        }
+        
+        .todo-item.vip {
+            border: 1px solid rgba(255, 204, 0, 0.3);
+        }
+        
+        .todo-item.vip::before {
+            background: var(--vip);
+        }
+        
+        .todo-item.professional {
+            border: 1px solid rgba(170, 0, 255, 0.3);
+        }
+        
+        .todo-item.professional::before {
+            background: var(--professional);
+        }
+        
+        .todo-item.completed {
+            opacity: 0.7;
+        }
+        
+        .todo-content {
+            flex: 1;
+            padding-right: 20px;
+        }
+        
+        .todo-title {
+            font-weight: 700;
+            font-size: 1.2rem;
+            margin-bottom: 8px;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .todo-description {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+        
+        .todo-priority {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            letter-spacing: 0.5px;
+        }
+        
+        .priority-high {
+            background-color: var(--danger);
+            color: white;
+            box-shadow: 0 0 10px rgba(255, 45, 117, 0.3);
+        }
+        
+        .priority-medium {
+            background-color: var(--secondary);
+            color: white;
+            box-shadow: 0 0 10px rgba(0, 132, 255, 0.3);
+        }
+        
+        .priority-low {
+            background-color: var(--success);
+            color: white;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+        }
+        
+        .todo-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .vip-badge {
+            background-color: var(--vip);
+            color: #664d00;
+            box-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
+        }
+        
+        .professional-badge {
+            background: linear-gradient(45deg, var(--professional), #cc00ff);
+            color: white;
+            box-shadow: 0 0 10px rgba(170, 0, 255, 0.3);
+        }
+        
+        .todo-meta {
+            display: flex;
+            align-items: center;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.85rem;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .status-complete {
+            position: relative;
+        }
+        
+        .status-complete::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--success);
+            transform: translateY(-50%);
+            animation: strike 0.3s ease-out forwards;
+        }
+        
+        @keyframes strike {
+            0% { width: 0 }
+            100% { width: 100% }
+        }
+        
+        .glow-text {
+            text-shadow: 0 0 10px currentColor;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.2rem;
+            }
+            
+            .todo-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .todo-content {
+                padding-right: 0;
+                margin-bottom: 20px;
+                width: 100%;
+            }
+            
+            .todo-actions {
+                margin-top: 15px;
+                align-self: flex-end;
+            }
+            
+            .btn {
+                padding: 12px 20px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Neon Futuristic Tasks</h1>
+        
+        <div class="card">
+            <h2>Create New Mission</h2>
+            <form id="addTodoForm">
+                <div class="form-group">
+                    <label for="title">Mission Title</label>
+                    <input type="text" id="title" placeholder="Enter mission title" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Mission Brief</label>
+                    <textarea id="description" rows="3" placeholder="Enter detailed mission description"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="priority">Priority Level</label>
+                    <select id="priority" required>
+                        <option value="high">Critical (High)</option>
+                        <option value="medium" selected>Standard (Medium)</option>
+                        <option value="low">Low Priority</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="type">Mission Type</label>
+                    <select id="type">
+                        <option value="normal" selected>Normal Operation</option>
+                        <option value="vip">VIP Mission</option>
+                        <option value="professional">Elite Professional</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn">Add Mission</button>
+            </form>
+        </div>
+        
+        <div class="card todo-list">
+            <h2>Active Missions</h2>
+            <div id="todoList"></div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase config
+        const firebaseConfig = {
+            authDomain: "todolist-567f7.firebaseapp.com",
+            projectId: "todolist-567f7",
+            storageBucket: "todolist-567f7.firebasestorage.app",
+            messagingSenderId: "698471476346",
+            appId: "1:698471476346:web:76e72aea00ab5346a3dfc3",
+            measurementId: "G-GVH44D847D"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Add todo
+        document.getElementById('addTodoForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const title = document.getElementById('title').value.trim();
+            const description = document.getElementById('description').value.trim();
+            const priority = document.getElementById('priority').value;
+            const type = document.getElementById('type').value;
+            const createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            const completed = false;
+            
+            db.collection("todos").add({ 
+                title, 
+                description, 
+                priority, 
+                type,
+                createdAt,
+                completed
+            })
+            .then(() => {
+                document.getElementById('addTodoForm').reset();
+            })
+            .catch(err => console.error("Error adding document: ", err));
+        });
+
+        // Function to render todos
+        function renderTodos(doc) {
+            const todoList = document.getElementById('todoList');
+            
+            const todoItem = document.createElement('div');
+            todoItem.className = `todo-item ${doc.data().type} ${doc.data().completed ? 'completed' : ''}`;
+            
+            let typeBadge = '';
+            if (doc.data().type === 'vip') {
+                typeBadge = '<span class="badge vip-badge glow-text" style="color: #ffcc00;">VIP</span>';
+            } else if (doc.data().type === 'professional') {
+                typeBadge = '<span class="badge professional-badge glow-text">PRO</span>';
+            }
+            
+            const dateOptions = { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            };
+            
+            todoItem.innerHTML = `
+                <div class="todo-content">
+                    <div class="todo-title ${doc.data().completed ? 'status-complete' : ''}">
+                        ${doc.data().title} ${typeBadge}
+                    </div>
+                    <div class="todo-description">${doc.data().description}</div>
+                    <div class="todo-meta">
+                        <span class="todo-priority priority-${doc.data().priority}">
+                            ${doc.data().priority.toUpperCase()}
+                        </span>
+                        <span>•</span>
+                        <span>${new Date(doc.data().createdAt?.toDate()).toLocaleString('en-US', dateOptions)}</span>
+                    </div>
+                </div>
+                <div class="todo-actions">
+                    <button class="btn btn-success complete-btn" data-id="${doc.id}">
+                        ${doc.data().completed ? 'Reactivate' : 'Complete'}
+                    </button>
+                    <button class="btn btn-danger delete-btn" data-id="${doc.id}">Terminate</button>
+                </div>
+            `;
+            
+            // Add event listeners for buttons
+            todoItem.querySelector('.delete-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                db.collection("todos").doc(doc.id).delete();
+            });
+            
+            todoItem.querySelector('.complete-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                db.collection("todos").doc(doc.id).update({
+                    completed: !doc.data().completed
+                });
+            });
+            
+            todoList.appendChild(todoItem);
+        }
+
+        // Live listener with onSnapshot
+        db.collection("todos").orderBy("createdAt", "desc").onSnapshot(snapshot => {
+            const todoList = document.getElementById('todoList');
+            todoList.innerHTML = "";
+            
+            snapshot.forEach(doc => {
+                renderTodos(doc);
+            });
+        });
+    </script>
+</body>
+</html>
